@@ -92,11 +92,12 @@ export async function fetchDailyTrend(posts: PostWithPage[]): Promise<DailyMetri
   return Array.from(dateMap.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, { aov, mlbb }]) => {
+      const getEng = (p: PostWithPage) => p.reactions_total + p.comments_count + p.shares_count
       const aovEng = aov.length > 0
-        ? aov.reduce((s, p) => s + (p.engagement_rate || 0), 0) / aov.length
+        ? Math.round(aov.reduce((s, p) => s + getEng(p), 0) / aov.length)
         : null
       const mlbbEng = mlbb.length > 0
-        ? mlbb.reduce((s, p) => s + (p.engagement_rate || 0), 0) / mlbb.length
+        ? Math.round(mlbb.reduce((s, p) => s + getEng(p), 0) / mlbb.length)
         : null
 
       return {

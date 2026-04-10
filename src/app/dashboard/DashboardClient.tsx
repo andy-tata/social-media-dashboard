@@ -21,35 +21,38 @@ export function DashboardClient({ posts, dailyTrend }: Props) {
     return t > Date.now() - 14 * 24 * 60 * 60 * 1000 && t <= Date.now() - 7 * 24 * 60 * 60 * 1000
   })
 
+  // 計算每篇貼文的互動總數
+  const getEngagement = (p: PostWithPage) => p.reactions_total + p.comments_count + p.shares_count
+
   // 傳說對決
   const aovThisWeek = thisWeekPosts.filter((p) => p.is_own)
   const aovLastWeek = lastWeekPosts.filter((p) => p.is_own)
-  const aovEngagement = aovThisWeek.length > 0
-    ? aovThisWeek.reduce((s, p) => s + (p.engagement_rate || 0), 0) / aovThisWeek.length : 0
-  const aovLastEngagement = aovLastWeek.length > 0
-    ? aovLastWeek.reduce((s, p) => s + (p.engagement_rate || 0), 0) / aovLastWeek.length : 0
-  const aovEngagementChange = aovLastEngagement > 0
-    ? ((aovEngagement - aovLastEngagement) / aovLastEngagement) * 100 : 0
-  const aovTotalInteraction = aovThisWeek.reduce((s, p) => s + p.reactions_total + p.comments_count + p.shares_count, 0)
-  const aovLastTotalInteraction = aovLastWeek.reduce((s, p) => s + p.reactions_total + p.comments_count + p.shares_count, 0)
+  const aovAvgEngagement = aovThisWeek.length > 0
+    ? Math.round(aovThisWeek.reduce((s, p) => s + getEngagement(p), 0) / aovThisWeek.length) : 0
+  const aovLastAvgEngagement = aovLastWeek.length > 0
+    ? Math.round(aovLastWeek.reduce((s, p) => s + getEngagement(p), 0) / aovLastWeek.length) : 0
+  const aovEngagementChange = aovLastAvgEngagement > 0
+    ? ((aovAvgEngagement - aovLastAvgEngagement) / aovLastAvgEngagement) * 100 : 0
+  const aovTotalInteraction = aovThisWeek.reduce((s, p) => s + getEngagement(p), 0)
+  const aovLastTotalInteraction = aovLastWeek.reduce((s, p) => s + getEngagement(p), 0)
   const aovInteractionChange = aovLastTotalInteraction > 0
     ? ((aovTotalInteraction - aovLastTotalInteraction) / aovLastTotalInteraction) * 100 : 0
 
   // MLBB
   const mlbbThisWeek = thisWeekPosts.filter((p) => !p.is_own)
   const mlbbLastWeek = lastWeekPosts.filter((p) => !p.is_own)
-  const mlbbEngagement = mlbbThisWeek.length > 0
-    ? mlbbThisWeek.reduce((s, p) => s + (p.engagement_rate || 0), 0) / mlbbThisWeek.length : 0
-  const mlbbLastEngagement = mlbbLastWeek.length > 0
-    ? mlbbLastWeek.reduce((s, p) => s + (p.engagement_rate || 0), 0) / mlbbLastWeek.length : 0
-  const mlbbEngagementChange = mlbbLastEngagement > 0
-    ? ((mlbbEngagement - mlbbLastEngagement) / mlbbLastEngagement) * 100 : 0
-  const mlbbTotalInteraction = mlbbThisWeek.reduce((s, p) => s + p.reactions_total + p.comments_count + p.shares_count, 0)
-  const mlbbLastTotalInteraction = mlbbLastWeek.reduce((s, p) => s + p.reactions_total + p.comments_count + p.shares_count, 0)
+  const mlbbAvgEngagement = mlbbThisWeek.length > 0
+    ? Math.round(mlbbThisWeek.reduce((s, p) => s + getEngagement(p), 0) / mlbbThisWeek.length) : 0
+  const mlbbLastAvgEngagement = mlbbLastWeek.length > 0
+    ? Math.round(mlbbLastWeek.reduce((s, p) => s + getEngagement(p), 0) / mlbbLastWeek.length) : 0
+  const mlbbEngagementChange = mlbbLastAvgEngagement > 0
+    ? ((mlbbAvgEngagement - mlbbLastAvgEngagement) / mlbbLastAvgEngagement) * 100 : 0
+  const mlbbTotalInteraction = mlbbThisWeek.reduce((s, p) => s + getEngagement(p), 0)
+  const mlbbLastTotalInteraction = mlbbLastWeek.reduce((s, p) => s + getEngagement(p), 0)
   const mlbbInteractionChange = mlbbLastTotalInteraction > 0
     ? ((mlbbTotalInteraction - mlbbLastTotalInteraction) / mlbbLastTotalInteraction) * 100 : 0
 
-  // 圖表資料
+  // 圖表資料 — 用每日平均互動數
   const trendData = dailyTrend.map((d) => ({
     date: d.date,
     aov: d.aov_engagement,
@@ -91,8 +94,8 @@ export function DashboardClient({ posts, dailyTrend }: Props) {
               subtitle="vs 上週"
             />
             <MetricCard
-              title="平均互動率"
-              value={`${aovEngagement.toFixed(2)}%`}
+              title="平均互動數"
+              value={aovAvgEngagement.toLocaleString()}
               change={aovEngagementChange}
               subtitle="vs 上週"
             />
@@ -115,8 +118,8 @@ export function DashboardClient({ posts, dailyTrend }: Props) {
               subtitle="vs 上週"
             />
             <MetricCard
-              title="平均互動率"
-              value={`${mlbbEngagement.toFixed(2)}%`}
+              title="平均互動數"
+              value={mlbbAvgEngagement.toLocaleString()}
               change={mlbbEngagementChange}
               subtitle="vs 上週"
             />
@@ -148,17 +151,29 @@ export function DashboardClient({ posts, dailyTrend }: Props) {
                 {post.is_own ? 'AoV' : 'MLBB'}
               </Badge>
               <div className="flex-1 min-w-0">
-                <p className="text-sm line-clamp-2">{post.post_text}</p>
+                {post.post_url ? (
+                  <a
+                    href={post.post_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm line-clamp-2 hover:text-blue-600 hover:underline transition-colors"
+                  >
+                    {post.post_text || '（無文字）'}
+                  </a>
+                ) : (
+                  <p className="text-sm line-clamp-2">{post.post_text || '（無文字）'}</p>
+                )}
                 <div className="flex items-center gap-4 mt-1.5 text-xs text-muted-foreground">
                   <span>{post.published_at ? new Date(post.published_at).toLocaleDateString('zh-TW') : '-'}</span>
+                  <span>👍 {post.likes_count.toLocaleString()}</span>
                   <span>{post.reactions_total.toLocaleString()} 反應</span>
                   <span>{post.comments_count.toLocaleString()} 留言</span>
                   <span>{post.shares_count.toLocaleString()} 分享</span>
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-sm font-medium">{post.engagement_rate}%</p>
-                <p className="text-xs text-muted-foreground">互動率</p>
+                <p className="text-sm font-medium">{(post.reactions_total + post.comments_count + post.shares_count).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">互動數</p>
               </div>
             </div>
           ))}

@@ -16,8 +16,9 @@ export function CompareClient({ posts, dailyTrend }: Props) {
 
   const aovAvgReactions = aovPosts.reduce((s, p) => s + p.reactions_total, 0) / (aovPosts.length || 1)
   const mlbbAvgReactions = mlbbPosts.reduce((s, p) => s + p.reactions_total, 0) / (mlbbPosts.length || 1)
-  const aovAvgEngagement = aovPosts.reduce((s, p) => s + (p.engagement_rate || 0), 0) / (aovPosts.length || 1)
-  const mlbbAvgEngagement = mlbbPosts.reduce((s, p) => s + (p.engagement_rate || 0), 0) / (mlbbPosts.length || 1)
+  const getEngagement = (p: PostWithPage) => p.reactions_total + p.comments_count + p.shares_count
+  const aovAvgEngagement = Math.round(aovPosts.reduce((s, p) => s + getEngagement(p), 0) / (aovPosts.length || 1))
+  const mlbbAvgEngagement = Math.round(mlbbPosts.reduce((s, p) => s + getEngagement(p), 0) / (mlbbPosts.length || 1))
 
   const trendData = dailyTrend.map((d) => ({
     date: d.date,
@@ -42,21 +43,21 @@ export function CompareClient({ posts, dailyTrend }: Props) {
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-blue-600">傳說對決</h3>
           <div className="grid grid-cols-2 gap-3">
-            <MetricCard title="平均互動率" value={`${aovAvgEngagement.toFixed(2)}%`} />
+            <MetricCard title="平均互動數" value={aovAvgEngagement.toLocaleString()} />
             <MetricCard title="貼文數" value={aovPosts.length} subtitle="已抓取" />
           </div>
         </div>
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-red-500">MLBB</h3>
           <div className="grid grid-cols-2 gap-3">
-            <MetricCard title="平均互動率" value={`${mlbbAvgEngagement.toFixed(2)}%`} />
+            <MetricCard title="平均互動數" value={mlbbAvgEngagement.toLocaleString()} />
             <MetricCard title="貼文數" value={mlbbPosts.length} subtitle="已抓取" />
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <EngagementLineChart data={trendData} title="互動率趨勢對比" />
+        <EngagementLineChart data={trendData} title="每日平均互動數趨勢對比" />
         <ComparisonChart data={comparisonData} title="平均互動指標對比" />
       </div>
     </div>

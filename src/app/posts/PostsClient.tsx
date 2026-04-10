@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/table'
 import type { PostWithPage } from '@/lib/data'
 
-type SortKey = 'published_at' | 'reactions_total' | 'comments_count' | 'shares_count' | 'engagement_rate'
+type SortKey = 'published_at' | 'reactions_total' | 'comments_count' | 'shares_count' | 'total_engagement'
 
 export function PostsClient({ posts }: { posts: PostWithPage[] }) {
   const [filter, setFilter] = useState<'all' | 'aov' | 'mlbb'>('all')
@@ -28,6 +28,11 @@ export function PostsClient({ posts }: { posts: PostWithPage[] }) {
   })
 
   const sorted = [...filtered].sort((a, b) => {
+    if (sortKey === 'total_engagement') {
+      const aEng = a.reactions_total + a.comments_count + a.shares_count
+      const bEng = b.reactions_total + b.comments_count + b.shares_count
+      return sortDesc ? bEng - aEng : aEng - bEng
+    }
     const aVal = a[sortKey] ?? 0
     const bVal = b[sortKey] ?? 0
     if (typeof aVal === 'string' && typeof bVal === 'string') {
@@ -47,12 +52,13 @@ export function PostsClient({ posts }: { posts: PostWithPage[] }) {
   const lastWeekInteraction = lastWeek.reduce((s, p) => s + p.reactions_total + p.comments_count + p.shares_count, 0)
   const interactionChange = lastWeekInteraction > 0
     ? ((thisWeekInteraction - lastWeekInteraction) / lastWeekInteraction) * 100 : 0
-  const thisWeekEngagement = thisWeek.length > 0
-    ? thisWeek.reduce((s, p) => s + (p.engagement_rate || 0), 0) / thisWeek.length : 0
-  const lastWeekEngagement = lastWeek.length > 0
-    ? lastWeek.reduce((s, p) => s + (p.engagement_rate || 0), 0) / lastWeek.length : 0
-  const engagementChange = lastWeekEngagement > 0
-    ? ((thisWeekEngagement - lastWeekEngagement) / lastWeekEngagement) * 100 : 0
+  const getEngagement = (p: PostWithPage) => p.reactions_total + p.comments_count + p.shares_count
+  const thisWeekAvgEngagement = thisWeek.length > 0
+    ? Math.round(thisWeek.reduce((s, p) => s + getEngagement(p), 0) / thisWeek.length) : 0
+  const lastWeekAvgEngagement = lastWeek.length > 0
+    ? Math.round(lastWeek.reduce((s, p) => s + getEngagement(p), 0) / lastWeek.length) : 0
+  const engagementChange = lastWeekAvgEngagement > 0
+    ? ((thisWeekAvgEngagement - lastWeekAvgEngagement) / lastWeekAvgEngagement) * 100 : 0
 
   function handleSort(key: SortKey) {
     if (sortKey === key) setSortDesc(!sortDesc)
@@ -96,7 +102,7 @@ export function PostsClient({ posts }: { posts: PostWithPage[] }) {
           subtitle={`vs 上週 ${lastWeek.length} 篇 · ${filterLabel}`}
         />
         <MetricCard title="本週總互動" value={thisWeekInteraction.toLocaleString()} change={interactionChange} subtitle={`vs 上週 · ${filterLabel}`} />
-        <MetricCard title="本週平均互動率" value={`${thisWeekEngagement.toFixed(2)}%`} change={engagementChange} subtitle={`vs 上週 · ${filterLabel}`} />
+        <MetricCard title="本週平均互動數" value={thisWeekAvgEngagement.toLocaleString()} change={engagementChange} subtitle={`vs 上週 · ${filterLabel}`} />
         <MetricCard title="資料總筆數" value={filtered.length} subtitle="已抓取" />
       </div>
 
@@ -120,8 +126,8 @@ export function PostsClient({ posts }: { posts: PostWithPage[] }) {
               <TableHead className="w-20 cursor-pointer select-none text-right" onClick={() => handleSort('shares_count')}>
                 分享<SortIcon active={sortKey === 'shares_count'} desc={sortDesc} />
               </TableHead>
-              <TableHead className="w-24 cursor-pointer select-none text-right" onClick={() => handleSort('engagement_rate')}>
-                互動率<SortIcon active={sortKey === 'engagement_rate'} desc={sortDesc} />
+              <TableHead className="w-24 cursor-pointer select-none text-right" onClick={() => handleSort('total_engagement')}>
+                互動數<SortIcon active={sortKey === 'total_engagement'} desc={sortDesc} />
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -133,14 +139,22 @@ export function PostsClient({ posts }: { posts: PostWithPage[] }) {
                     {post.is_own ? 'AoV' : 'MLBB'}
                   </Badge>
                 </TableCell>
-                <TableCell><p className="text-sm line-clamp-2">{post.post_text}</p></TableCell>
+                <TableCell>
+                  {post.post_url ? (
+                    <a href={post.post_url} target="_blank" rel="noopener noreferrer" className="text-sm line-clamp-2 hover:text-blue-600 hover:underline">
+                      {post.post_text || '（無文字）'}
+                    </a>
+                  ) : (
+                    <p className="text-sm line-clamp-2">{post.post_text || '（無文字）'}</p>
+                  )}
+                </TableCell>
                 <TableCell><span className="text-xs text-muted-foreground">{POST_TYPE_LABELS[post.post_type] || post.post_type}</span></TableCell>
                 <TableCell><Badge variant="outline" className="text-xs">{CATEGORY_LABELS[post.post_category] || post.post_category}</Badge></TableCell>
                 <TableCell className="text-sm">{post.published_at ? new Date(post.published_at).toLocaleDateString('zh-TW') : '-'}</TableCell>
                 <TableCell className="text-right text-sm font-medium">{post.reactions_total.toLocaleString()}</TableCell>
                 <TableCell className="text-right text-sm">{post.comments_count.toLocaleString()}</TableCell>
                 <TableCell className="text-right text-sm">{post.shares_count.toLocaleString()}</TableCell>
-                <TableCell className="text-right text-sm font-medium">{post.engagement_rate}%</TableCell>
+                <TableCell className="text-right text-sm font-medium">{(post.reactions_total + post.comments_count + post.shares_count).toLocaleString()}</TableCell>
               </TableRow>
             ))}
           </TableBody>

@@ -51,11 +51,12 @@ export function TrendsClient({ posts }: { posts: PostWithPage[] }) {
     count,
   }))
 
-  // 爆款貼文
-  const avgEngagement = filteredPosts.reduce((s, p) => s + (p.engagement_rate || 0), 0) / (filteredPosts.length || 1)
+  // 爆款貼文 — 用互動總數判斷
+  const getEngagement = (p: PostWithPage) => p.reactions_total + p.comments_count + p.shares_count
+  const avgEngagement = filteredPosts.reduce((s, p) => s + getEngagement(p), 0) / (filteredPosts.length || 1)
   const viralPosts = filteredPosts
-    .filter((p) => (p.engagement_rate || 0) > avgEngagement * 1.5)
-    .sort((a, b) => (b.engagement_rate || 0) - (a.engagement_rate || 0))
+    .filter((p) => getEngagement(p) > avgEngagement * 1.5)
+    .sort((a, b) => getEngagement(b) - getEngagement(a))
     .slice(0, 5)
 
   const filterLabel = filter === 'all' ? '全部' : filter === 'aov' ? '傳說對決' : 'MLBB'
@@ -134,7 +135,7 @@ export function TrendsClient({ posts }: { posts: PostWithPage[] }) {
                       <p className="text-sm line-clamp-2">{post.post_text}</p>
                       <div className="flex gap-3 mt-1 text-xs text-muted-foreground">
                         <span>{post.reactions_total.toLocaleString()} 反應</span>
-                        <span className="font-medium text-blue-600">{post.engagement_rate}% 互動率</span>
+                        <span className="font-medium text-blue-600">{getEngagement(post).toLocaleString()} 互動數</span>
                       </div>
                     </div>
                   </div>

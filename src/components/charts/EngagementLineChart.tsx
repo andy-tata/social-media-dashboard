@@ -23,11 +23,15 @@ type EngagementLineChartProps = {
   title?: string
 }
 
-export function EngagementLineChart({ data, title = '互動率趨勢（30 天）' }: EngagementLineChartProps) {
+export function EngagementLineChart({ data, title }: EngagementLineChartProps) {
+  // 動態計算實際資料天數
+  const dayCount = data.length
+  const chartTitle = title || (dayCount > 0 ? `每日平均互動數趨勢（近 ${dayCount} 天）` : '每日平均互動數趨勢')
+
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">{title}</CardTitle>
+        <CardTitle className="text-base">{chartTitle}</CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
@@ -38,9 +42,9 @@ export function EngagementLineChart({ data, title = '互動率趨勢（30 天）
               tick={{ fontSize: 12 }}
               tickFormatter={(v) => v.slice(5)} // 只顯示 MM-DD
             />
-            <YAxis tick={{ fontSize: 12 }} unit="%" />
+            <YAxis tick={{ fontSize: 12 }} />
             <Tooltip
-              formatter={(value) => [`${Number(value).toFixed(2)}%`, '']}
+              formatter={(value) => [`${Number(value).toLocaleString()}`, '']}
               labelFormatter={(label) => `日期：${label}`}
             />
             <Legend />
