@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
       if (!pageId) continue
 
       // Apify 欄位映射
+      const reactions = (post.reactions || {}) as Record<string, number>
       const reactionsTotal =
         ((post.topReactionsCount as number) || 0) ||
         ((post.likes as number) || 0)
@@ -68,12 +69,12 @@ export async function POST(request: NextRequest) {
         comments_count: (post.comments || post.commentsCount || 0) as number,
         shares_count: (post.shares || post.sharesCount || 0) as number,
         reactions_total: reactionsTotal,
-        reaction_like: (post.reactionLikeCount || post.reactions?.like || 0) as number,
-        reaction_love: (post.reactionLoveCount || post.reactions?.love || 0) as number,
-        reaction_haha: (post.reactionHahaCount || post.reactions?.haha || 0) as number,
-        reaction_wow: (post.reactionWowCount || post.reactions?.wow || 0) as number,
-        reaction_sad: (post.reactionSadCount || post.reactions?.sad || 0) as number,
-        reaction_angry: (post.reactionAngryCount || post.reactions?.angry || 0) as number,
+        reaction_like: ((post.reactionLikeCount as number) || reactions.like || 0) as number,
+        reaction_love: ((post.reactionLoveCount as number) || reactions.love || 0) as number,
+        reaction_haha: ((post.reactionHahaCount as number) || reactions.haha || 0) as number,
+        reaction_wow: ((post.reactionWowCount as number) || reactions.wow || 0) as number,
+        reaction_sad: ((post.reactionSadCount as number) || reactions.sad || 0) as number,
+        reaction_angry: ((post.reactionAngryCount as number) || reactions.angry || 0) as number,
         post_category: classifyPost((post.text || post.message || '') as string),
         media_url: ((post.media as { url?: string }[])?.[0]?.url || post.photoUrl || null) as string | null,
         media_type: detectMediaType(post),
@@ -141,7 +142,7 @@ function matchPageId(
   }
 
   // 2. 從 pageName 匹配
-  const pageName = (post.pageName || post.pageTitle || post.user?.name || '') as string
+  const pageName = (post.pageName || post.pageTitle || (post.user as Record<string, unknown>)?.name || '') as string
   for (const [name, uuid] of pageNameMap) {
     if (pageName.toLowerCase().includes(name.toLowerCase()) ||
         name.toLowerCase().includes(pageName.toLowerCase())) {
