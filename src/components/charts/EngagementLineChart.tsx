@@ -51,7 +51,7 @@ export function EngagementLineChart({ data, title }: EngagementLineChartProps) {
             <Line
               type="monotone"
               dataKey="aov"
-              name="傳說對決"
+              name="ROV"
               stroke="#3b82f6"
               strokeWidth={2}
               dot={false}
@@ -60,7 +60,7 @@ export function EngagementLineChart({ data, title }: EngagementLineChartProps) {
             <Line
               type="monotone"
               dataKey="mlbb"
-              name="MLBB"
+              name="MLBBTH"
               stroke="#ef4444"
               strokeWidth={2}
               dot={false}

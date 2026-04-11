@@ -1,7 +1,8 @@
-import { fetchPosts } from '@/lib/data'
+import { fetchPosts, fetchComments } from '@/lib/data'
 import { PostsClient } from './PostsClient'
 
 export default async function PostsPage() {
   const posts = await fetchPosts()
-  return <PostsClient posts={posts} />
+  const comments = await fetchComments()
+  return <PostsClient posts={posts} comments={comments} />
 }

@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils'
 const NAV_ITEMS = [
   { href: '/dashboard', label: '總覽', icon: '📊' },
   { href: '/posts', label: '內容表現', icon: '📝' },
-  { href: '/compare', label: '競品對標', icon: '⚔️' },
   { href: '/sentiment', label: '情緒分析', icon: '💬' },
   { href: '/trends', label: '熱門話題', icon: '🔥' },
   { href: '/campaigns', label: '活動追蹤', icon: '🎯' },
@@ -21,7 +20,7 @@ export function Sidebar() {
     <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:border-r lg:border-border bg-card">
       <div className="p-4 border-b border-border">
         <h1 className="text-lg font-bold">社群成效分析</h1>
-        <p className="text-xs text-muted-foreground mt-1">傳說對決 vs MLBB</p>
+        <p className="text-xs text-muted-foreground mt-1">ROV vs MLBBTH</p>
       </div>
       <nav className="flex-1 p-3 space-y-1">
         {NAV_ITEMS.map((item) => (

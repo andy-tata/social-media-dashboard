@@ -16,7 +16,6 @@ export async function fetchPosts(): Promise<PostWithPage[]> {
     .from('fb_posts')
     .select('*')
     .order('published_at', { ascending: false })
-    .limit(100)
 
   if (!posts || posts.length === 0) return []
 

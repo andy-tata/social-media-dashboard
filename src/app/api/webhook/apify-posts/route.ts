@@ -46,11 +46,32 @@ export async function POST(request: NextRequest) {
 
     let inserted = 0
     let updated = 0
+    let skipped = 0
+
+    // 2 天刷新規則：超過 2 天的舊貼文不再更新
+    const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000
 
     for (const post of posts) {
       // 從 Apify 資料中匹配粉專
       const pageId = matchPageId(post, pageMap, pageNameMap)
       if (!pageId) continue
+
+      const fbPostId = (post.postId || post.facebookId || post.id || `${Date.now()}_${Math.random()}`) as string
+
+      // 檢查這篇貼文是否已存在且超過 2 天
+      const { data: existing } = await supabaseAdmin
+        .from('fb_posts')
+        .select('created_at')
+        .eq('fb_post_id', fbPostId)
+        .single() as { data: { created_at: string } | null }
+
+      if (existing) {
+        const createdAt = new Date(existing.created_at).getTime()
+        if (Date.now() - createdAt > TWO_DAYS_MS) {
+          skipped++
+          continue
+        }
+      }
 
       // Apify 欄位映射
       const reactions = (post.reactions || {}) as Record<string, number>
@@ -60,7 +81,7 @@ export async function POST(request: NextRequest) {
 
       const postData = {
         page_id: pageId,
-        fb_post_id: (post.postId || post.facebookId || post.id || `${Date.now()}_${Math.random()}`) as string,
+        fb_post_id: fbPostId,
         post_url: (post.url || post.postUrl || null) as string | null,
         post_text: (post.text || post.message || null) as string | null,
         post_type: detectPostType(post),
@@ -76,7 +97,7 @@ export async function POST(request: NextRequest) {
         reaction_sad: ((post.reactionSadCount as number) || reactions.sad || 0) as number,
         reaction_angry: ((post.reactionAngryCount as number) || reactions.angry || 0) as number,
         post_category: classifyPost((post.text || post.message || '') as string),
-        media_url: ((post.media as { url?: string }[])?.[0]?.url || post.photoUrl || null) as string | null,
+        media_url: ((post.media as { thumbnail?: string; url?: string }[])?.[0]?.thumbnail || (post.media as { url?: string }[])?.[0]?.url || post.photoUrl || null) as string | null,
         media_type: detectMediaType(post),
         raw_data: post,
         scraped_at: new Date().toISOString(),
@@ -111,7 +132,7 @@ export async function POST(request: NextRequest) {
     } as never)
 
     return NextResponse.json({
-      message: `Processed ${posts.length} posts. Inserted: ${inserted}, Updated: ${updated}`,
+      message: `Processed ${posts.length} posts. Inserted: ${inserted}, Updated: ${updated}, Skipped (>2d): ${skipped}`,
     })
   } catch (error) {
     await supabaseAdmin.from('scrape_logs').insert({
@@ -164,8 +185,14 @@ function matchPageId(
 }
 
 function detectPostType(post: Record<string, unknown>): string {
-  const media = post.media as { type?: string }[] | undefined
+  // 優先檢查 URL 是否為 Reel
+  const url = (post.url || '') as string
+  if (url.includes('/reel/')) return 'video'
+
+  const media = post.media as { type?: string; __typename?: string }[] | undefined
   if (media && media.length > 0) {
+    // 檢查 __typename（Apify 實際回傳的欄位）
+    if (media[0]?.__typename === 'Video') return 'video'
     const firstType = media[0]?.type
     if (firstType === 'video' || post.videoUrl) return 'video'
     if (firstType === 'photo' || post.photoUrl) return 'photo'

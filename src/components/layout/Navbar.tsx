@@ -8,7 +8,6 @@ import { useState } from 'react'
 const NAV_ITEMS = [
   { href: '/dashboard', label: '總覽', icon: '📊' },
   { href: '/posts', label: '內容表現', icon: '📝' },
-  { href: '/compare', label: '競品對標', icon: '⚔️' },
   { href: '/sentiment', label: '情緒分析', icon: '💬' },
   { href: '/trends', label: '熱門話題', icon: '🔥' },
   { href: '/campaigns', label: '活動追蹤', icon: '🎯' },

@@ -1,9 +1,13 @@
 'use client'
 
-import { useState } from 'react'
-import { CATEGORY_LABELS, POST_TYPE_LABELS } from '@/lib/utils/postClassifier'
+import { useState, useMemo } from 'react'
+import { POST_TYPE_LABELS } from '@/lib/utils/postClassifier'
+import { generatePostSummary } from '@/lib/utils/postSummary'
 import { MetricCard } from '@/components/cards/MetricCard'
+import { DateRangePicker, getComparisonRange, formatRangeLabel } from '@/components/ui/date-range-picker'
+import type { DateRange } from '@/components/ui/date-range-picker'
 import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 import {
   Table,
   TableBody,
@@ -13,52 +17,120 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { PostWithPage } from '@/lib/data'
+import type { FbComment } from '@/types/database'
 
+type CommentWithBrand = FbComment & { is_own: boolean }
 type SortKey = 'published_at' | 'reactions_total' | 'comments_count' | 'shares_count' | 'total_engagement'
+type BrandFilter = 'rov' | 'mlbbth'
+type MediaFilter = 'all' | 'photo' | 'video'
 
-export function PostsClient({ posts }: { posts: PostWithPage[] }) {
-  const [filter, setFilter] = useState<'all' | 'aov' | 'mlbb'>('all')
-  const [sortKey, setSortKey] = useState<SortKey>('published_at')
+function formatDateStr(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function getDefaultRange(): DateRange {
+  const now = new Date()
+  const end = formatDateStr(now)
+  const start = new Date(now)
+  start.setDate(start.getDate() - 6)
+  return { start: formatDateStr(start), end }
+}
+
+function filterByRange(posts: PostWithPage[], range: DateRange): PostWithPage[] {
+  return posts.filter((p) => {
+    if (!p.published_at) return false
+    const date = p.published_at.split('T')[0]
+    return date >= range.start && date <= range.end
+  })
+}
+
+function getEngagement(p: PostWithPage) {
+  return p.reactions_total + p.comments_count + p.shares_count
+}
+
+function calcChange(current: number, previous: number): number {
+  return previous > 0 ? ((current - previous) / previous) * 100 : 0
+}
+
+// 可展開文字元件
+function ExpandableText({ text, maxLength = 80 }: { text: string; maxLength?: number }) {
+  const [expanded, setExpanded] = useState(false)
+  if (!text) return <span className="text-muted-foreground">（無文字）</span>
+  if (text.length <= maxLength) return <span className="break-words whitespace-pre-wrap">{text}</span>
+  return (
+    <span className="break-words whitespace-pre-wrap">
+      {expanded ? text : text.slice(0, maxLength) + '...'}
+      <button
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpanded(!expanded) }}
+        className="ml-1 text-blue-500 hover:text-blue-700 text-xs inline"
+      >
+        {expanded ? '收起' : '展開'}
+      </button>
+    </span>
+  )
+}
+
+type Props = {
+  posts: PostWithPage[]
+  comments: CommentWithBrand[]
+}
+
+export function PostsClient({ posts, comments }: Props) {
+  const [filter, setFilter] = useState<BrandFilter>('rov')
+  const [mediaFilter, setMediaFilter] = useState<MediaFilter>('all')
+  const [dateRange, setDateRange] = useState<DateRange>(getDefaultRange)
+  const [sortKey, setSortKey] = useState<SortKey>('total_engagement')
   const [sortDesc, setSortDesc] = useState(true)
 
-  const filtered = posts.filter((p) => {
-    if (filter === 'aov') return p.is_own
-    if (filter === 'mlbb') return !p.is_own
-    return true
-  })
+  const compRange = useMemo(() => getComparisonRange(dateRange), [dateRange])
+  const currentLabel = formatRangeLabel(dateRange)
+  const compLabel = formatRangeLabel(compRange)
 
-  const sorted = [...filtered].sort((a, b) => {
-    if (sortKey === 'total_engagement') {
-      const aEng = a.reactions_total + a.comments_count + a.shares_count
-      const bEng = b.reactions_total + b.comments_count + b.shares_count
-      return sortDesc ? bEng - aEng : aEng - bEng
-    }
-    const aVal = a[sortKey] ?? 0
-    const bVal = b[sortKey] ?? 0
-    if (typeof aVal === 'string' && typeof bVal === 'string') {
-      return sortDesc ? bVal.localeCompare(aVal) : aVal.localeCompare(bVal)
-    }
-    return sortDesc ? (bVal as number) - (aVal as number) : (aVal as number) - (bVal as number)
-  })
+  // 品牌篩選
+  const brandPosts = useMemo(() => {
+    return posts.filter((p) => filter === 'rov' ? p.is_own : !p.is_own)
+  }, [posts, filter])
 
-  const thisWeek = filtered.filter(
-    (p) => new Date(p.published_at!).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000
-  )
-  const lastWeek = filtered.filter((p) => {
-    const t = new Date(p.published_at!).getTime()
-    return t > Date.now() - 14 * 24 * 60 * 60 * 1000 && t <= Date.now() - 7 * 24 * 60 * 60 * 1000
-  })
-  const thisWeekInteraction = thisWeek.reduce((s, p) => s + p.reactions_total + p.comments_count + p.shares_count, 0)
-  const lastWeekInteraction = lastWeek.reduce((s, p) => s + p.reactions_total + p.comments_count + p.shares_count, 0)
-  const interactionChange = lastWeekInteraction > 0
-    ? ((thisWeekInteraction - lastWeekInteraction) / lastWeekInteraction) * 100 : 0
-  const getEngagement = (p: PostWithPage) => p.reactions_total + p.comments_count + p.shares_count
-  const thisWeekAvgEngagement = thisWeek.length > 0
-    ? Math.round(thisWeek.reduce((s, p) => s + getEngagement(p), 0) / thisWeek.length) : 0
-  const lastWeekAvgEngagement = lastWeek.length > 0
-    ? Math.round(lastWeek.reduce((s, p) => s + getEngagement(p), 0) / lastWeek.length) : 0
-  const engagementChange = lastWeekAvgEngagement > 0
-    ? ((thisWeekAvgEngagement - lastWeekAvgEngagement) / lastWeekAvgEngagement) * 100 : 0
+  // 日期範圍篩選
+  const currentPosts = useMemo(() => filterByRange(brandPosts, dateRange), [brandPosts, dateRange])
+  const previousPosts = useMemo(() => filterByRange(brandPosts, compRange), [brandPosts, compRange])
+
+  // KPI
+  const currentEngagement = currentPosts.reduce((s, p) => s + getEngagement(p), 0)
+  const previousEngagement = previousPosts.reduce((s, p) => s + getEngagement(p), 0)
+
+  // 排序 + 類型篩選
+  const sorted = useMemo(() => {
+    let filtered = currentPosts
+    if (mediaFilter !== 'all') filtered = filtered.filter((p) => p.post_type === mediaFilter)
+    return [...filtered].sort((a, b) => {
+      if (sortKey === 'total_engagement') {
+        return sortDesc ? getEngagement(b) - getEngagement(a) : getEngagement(a) - getEngagement(b)
+      }
+      const aVal = a[sortKey] ?? 0
+      const bVal = b[sortKey] ?? 0
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return sortDesc ? bVal.localeCompare(aVal) : aVal.localeCompare(bVal)
+      }
+      return sortDesc ? (bVal as number) - (aVal as number) : (aVal as number) - (bVal as number)
+    })
+  }, [currentPosts, sortKey, sortDesc, mediaFilter])
+
+  // Top 5 互動留言：篩選品牌 + 期間內的貼文 ID，再從留言中找
+  const top5Comments = useMemo(() => {
+    const postIds = new Set(currentPosts.map((p) => p.id))
+    return comments
+      .filter((c) => {
+        if (!postIds.has(c.post_id)) return false
+        if (filter === 'rov') return c.is_own
+        return !c.is_own
+      })
+      .sort((a, b) => b.likes_count - a.likes_count)
+      .slice(0, 5)
+  }, [comments, currentPosts, filter])
 
   function handleSort(key: SortKey) {
     if (sortKey === key) setSortDesc(!sortDesc)
@@ -69,51 +141,135 @@ export function PostsClient({ posts }: { posts: PostWithPage[] }) {
     <span className="ml-1 text-xs">{active ? (desc ? '▼' : '▲') : '⇅'}</span>
   )
 
-  const filterLabel = filter === 'all' ? '全部' : filter === 'aov' ? '傳說對決' : 'MLBB'
-
   return (
     <div className="p-4 lg:p-6 space-y-4">
-      <div>
-        <h2 className="text-xl font-bold">內容表現</h2>
-        <p className="text-sm text-muted-foreground mt-1">所有貼文的互動數據（每日抓取各粉專最新 30 篇貼文）</p>
+      {/* 標題 + 日期選擇器 */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold">內容表現</h2>
+          <p className="text-sm text-muted-foreground mt-1">貼文互動數據分析</p>
+        </div>
+        <DateRangePicker value={dateRange} onChange={setDateRange} />
       </div>
 
-      <div className="flex gap-2">
-        {(['all', 'aov', 'mlbb'] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-              filter === f
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-secondary text-secondary-foreground hover:bg-accent'
-            }`}
-          >
-            {f === 'all' ? '全部' : f === 'aov' ? '傳說對決' : 'MLBB'}
-          </button>
-        ))}
+      {/* 品牌切換 + 類型篩選 */}
+      <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex gap-2">
+          {([
+            { key: 'rov' as const, label: 'ROV' },
+            { key: 'mlbbth' as const, label: 'MLBBTH' },
+          ]).map((item) => (
+            <button
+              key={item.key}
+              onClick={() => setFilter(item.key)}
+              className={cn(
+                'px-3 py-1.5 text-sm rounded-md transition-colors',
+                filter === item.key
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-secondary text-secondary-foreground hover:bg-accent'
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <div className="h-5 w-px bg-border" />
+        <div className="flex gap-1.5">
+          {([
+            { key: 'all' as const, label: '全部' },
+            { key: 'photo' as const, label: '圖片' },
+            { key: 'video' as const, label: '影片' },
+          ]).map((item) => (
+            <button
+              key={item.key}
+              onClick={() => setMediaFilter(item.key)}
+              className={cn(
+                'px-2.5 py-1 text-xs rounded-md border transition-colors',
+                mediaFilter === item.key
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-card text-muted-foreground border-border hover:bg-accent'
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPI 卡片 */}
+      <div className="grid grid-cols-3 gap-4">
         <MetricCard
-          title="本週貼文數"
-          value={thisWeek.length}
-          change={lastWeek.length > 0 ? ((thisWeek.length - lastWeek.length) / lastWeek.length) * 100 : 0}
-          subtitle={`vs 上週 ${lastWeek.length} 篇 · ${filterLabel}`}
+          title="貼文數"
+          value={currentPosts.length}
+          change={calcChange(currentPosts.length, previousPosts.length)}
+          subtitle={`vs ${compLabel}`}
         />
-        <MetricCard title="本週總互動" value={thisWeekInteraction.toLocaleString()} change={interactionChange} subtitle={`vs 上週 · ${filterLabel}`} />
-        <MetricCard title="本週平均互動數" value={thisWeekAvgEngagement.toLocaleString()} change={engagementChange} subtitle={`vs 上週 · ${filterLabel}`} />
-        <MetricCard title="資料總筆數" value={filtered.length} subtitle="已抓取" />
+        <MetricCard
+          title="總互動"
+          value={currentEngagement.toLocaleString()}
+          change={calcChange(currentEngagement, previousEngagement)}
+          subtitle={`vs ${compLabel}`}
+        />
+        <MetricCard
+          title="貼文總數"
+          value={brandPosts.length}
+          subtitle="所有已抓取資料"
+        />
       </div>
 
+      {/* Top 5 互動留言 */}
+      <div className="bg-card rounded-lg border border-border">
+        <div className="p-4 border-b border-border">
+          <h3 className="text-sm font-semibold">Top 5 互動留言 — {currentLabel}</h3>
+        </div>
+        <div className="divide-y divide-border">
+          {top5Comments.length === 0 ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">
+              尚無留言資料（需接上留言爬蟲後才會有資料）
+            </div>
+          ) : (
+            top5Comments.map((c, idx) => (
+              <div key={c.id} className="p-4 flex items-start gap-3">
+                <span className="shrink-0 w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground mt-0.5">
+                  {idx + 1}
+                </span>
+                {c.sentiment_label && (
+                  <Badge
+                    variant="outline"
+                    className={cn('shrink-0 text-xs mt-0.5',
+                      c.sentiment_label === 'positive' ? 'border-green-300 text-green-700 bg-green-50' :
+                      c.sentiment_label === 'negative' ? 'border-red-300 text-red-700 bg-red-50' :
+                      'border-gray-300 text-gray-600'
+                    )}
+                  >
+                    {c.sentiment_label === 'positive' ? '正面' : c.sentiment_label === 'negative' ? '負面' : '中立'}
+                  </Badge>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm">{c.comment_text || '（無文字）'}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {c.author_name || '匿名'} · {c.published_at ? new Date(c.published_at).toLocaleDateString('zh-TW') : '-'}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-sm font-medium">{c.likes_count.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">讚</p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* 貼文列表 */}
       <div className="border border-border rounded-lg overflow-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-16">來源</TableHead>
-              <TableHead className="min-w-[200px]">內容</TableHead>
+              <TableHead className="w-10">#</TableHead>
+              <TableHead className="w-16">圖</TableHead>
+              <TableHead className="min-w-[280px]">內容</TableHead>
               <TableHead className="w-20">類型</TableHead>
-              <TableHead className="w-20">分類</TableHead>
               <TableHead className="w-24 cursor-pointer select-none" onClick={() => handleSort('published_at')}>
                 日期<SortIcon active={sortKey === 'published_at'} desc={sortDesc} />
               </TableHead>
@@ -132,29 +288,44 @@ export function PostsClient({ posts }: { posts: PostWithPage[] }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sorted.map((post) => (
+            {sorted.map((post, idx) => (
               <TableRow key={post.id}>
+                <TableCell className="text-xs text-muted-foreground">{idx + 1}</TableCell>
                 <TableCell>
-                  <Badge variant={post.is_own ? 'default' : 'secondary'} className="text-xs">
-                    {post.is_own ? 'AoV' : 'MLBB'}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  {post.post_url ? (
-                    <a href={post.post_url} target="_blank" rel="noopener noreferrer" className="text-sm line-clamp-2 hover:text-blue-600 hover:underline">
-                      {post.post_text || '（無文字）'}
-                    </a>
+                  {post.media_url ? (
+                    <img
+                      src={post.media_url}
+                      alt=""
+                      className="w-12 h-12 rounded object-cover bg-muted"
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
                   ) : (
-                    <p className="text-sm line-clamp-2">{post.post_text || '（無文字）'}</p>
+                    <div className="w-12 h-12 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground">
+                      {POST_TYPE_LABELS[post.post_type]?.[0] || '?'}
+                    </div>
                   )}
                 </TableCell>
+                <TableCell>
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-blue-600">{generatePostSummary(post.post_text || '')}</p>
+                    <div className="text-sm">
+                      {post.post_url ? (
+                        <a href={post.post_url} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 hover:underline">
+                          <ExpandableText text={post.post_text || ''} />
+                        </a>
+                      ) : (
+                        <ExpandableText text={post.post_text || ''} />
+                      )}
+                    </div>
+                  </div>
+                </TableCell>
                 <TableCell><span className="text-xs text-muted-foreground">{POST_TYPE_LABELS[post.post_type] || post.post_type}</span></TableCell>
-                <TableCell><Badge variant="outline" className="text-xs">{CATEGORY_LABELS[post.post_category] || post.post_category}</Badge></TableCell>
                 <TableCell className="text-sm">{post.published_at ? new Date(post.published_at).toLocaleDateString('zh-TW') : '-'}</TableCell>
                 <TableCell className="text-right text-sm font-medium">{post.reactions_total.toLocaleString()}</TableCell>
                 <TableCell className="text-right text-sm">{post.comments_count.toLocaleString()}</TableCell>
                 <TableCell className="text-right text-sm">{post.shares_count.toLocaleString()}</TableCell>
-                <TableCell className="text-right text-sm font-medium">{(post.reactions_total + post.comments_count + post.shares_count).toLocaleString()}</TableCell>
+                <TableCell className="text-right text-sm font-medium">{getEngagement(post).toLocaleString()}</TableCell>
               </TableRow>
             ))}
           </TableBody>

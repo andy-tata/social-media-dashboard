@@ -37,8 +37,8 @@ export function PostTypeBarChart({ data, title = '貼文類型分佈' }: PostTyp
             <YAxis tick={{ fontSize: 12 }} />
             <Tooltip />
             <Legend />
-            <Bar dataKey="aov" name="傳說對決" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="mlbb" name="MLBB" fill="#ef4444" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="aov" name="ROV" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="mlbb" name="MLBBTH" fill="#ef4444" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

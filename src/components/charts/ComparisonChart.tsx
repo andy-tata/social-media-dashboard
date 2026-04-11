@@ -38,8 +38,8 @@ export function ComparisonChart({ data, title = '競品對比', valueLabel }: Co
             <YAxis dataKey="label" type="category" tick={{ fontSize: 12 }} width={80} />
             <Tooltip formatter={(value) => [valueLabel ? `${value} ${valueLabel}` : value, '']} />
             <Legend />
-            <Bar dataKey="aov" name="傳說對決" fill="#3b82f6" radius={[0, 4, 4, 0]} />
-            <Bar dataKey="mlbb" name="MLBB" fill="#ef4444" radius={[0, 4, 4, 0]} />
+            <Bar dataKey="aov" name="ROV" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+            <Bar dataKey="mlbb" name="MLBBTH" fill="#ef4444" radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>
