@@ -196,7 +196,7 @@ export function PostsClient({ posts, comments }: Props) {
       </div>
 
       {/* KPI 卡片 */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <MetricCard
           title="貼文數"
           value={currentPosts.length}
@@ -208,11 +208,6 @@ export function PostsClient({ posts, comments }: Props) {
           value={currentEngagement.toLocaleString()}
           change={calcChange(currentEngagement, previousEngagement)}
           subtitle={`vs ${compLabel}`}
-        />
-        <MetricCard
-          title="貼文總數"
-          value={brandPosts.length}
-          subtitle="所有已抓取資料"
         />
       </div>
 
