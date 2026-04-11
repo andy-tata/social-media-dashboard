@@ -29,7 +29,9 @@ export async function fetchPosts(): Promise<PostWithPage[]> {
   })
 }
 
-export async function fetchComments(): Promise<(FbComment & { is_own: boolean })[]> {
+export type CommentWithMeta = FbComment & { is_own: boolean; post_url: string | null }
+
+export async function fetchComments(): Promise<CommentWithMeta[]> {
   const { data: pages } = await supabaseAdmin
     .from('fb_pages')
     .select('id, is_own')
@@ -40,17 +42,19 @@ export async function fetchComments(): Promise<(FbComment & { is_own: boolean })
 
   const { data: posts } = await supabaseAdmin
     .from('fb_posts')
-    .select('id, page_id')
+    .select('id, page_id, post_url')
 
   const postPageMap = new Map(
     (posts || []).map((p: { id: string; page_id: string }) => [p.id, p.page_id])
+  )
+  const postUrlMap = new Map(
+    (posts || []).map((p: { id: string; post_url: string | null }) => [p.id, p.post_url])
   )
 
   const { data: comments } = await supabaseAdmin
     .from('fb_comments')
     .select('*')
     .order('published_at', { ascending: false })
-    .limit(200)
 
   if (!comments || comments.length === 0) return []
 
@@ -59,6 +63,7 @@ export async function fetchComments(): Promise<(FbComment & { is_own: boolean })
     return {
       ...c,
       is_own: pageId ? (pageMap.get(pageId) || false) : false,
+      post_url: postUrlMap.get(c.post_id) || null,
     }
   })
 }

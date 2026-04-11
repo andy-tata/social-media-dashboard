@@ -16,10 +16,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import type { PostWithPage } from '@/lib/data'
-import type { FbComment } from '@/types/database'
+import type { PostWithPage, CommentWithMeta } from '@/lib/data'
 
-type CommentWithBrand = FbComment & { is_own: boolean }
 type SortKey = 'published_at' | 'reactions_total' | 'comments_count' | 'shares_count' | 'total_engagement'
 type BrandFilter = 'rov' | 'mlbbth'
 type MediaFilter = 'all' | 'photo' | 'video'
@@ -75,7 +73,7 @@ function ExpandableText({ text, maxLength = 80 }: { text: string; maxLength?: nu
 
 type Props = {
   posts: PostWithPage[]
-  comments: CommentWithBrand[]
+  comments: CommentWithMeta[]
 }
 
 export function PostsClient({ posts, comments }: Props) {
