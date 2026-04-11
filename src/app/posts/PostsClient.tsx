@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { POST_TYPE_LABELS } from '@/lib/utils/postClassifier'
 import { generatePostSummary } from '@/lib/utils/postSummary'
+import { translateComment } from '@/lib/utils/commentTranslator'
 import { MetricCard } from '@/components/cards/MetricCard'
 import { DateRangePicker, getComparisonRange, formatRangeLabel } from '@/components/ui/date-range-picker'
 import type { DateRange } from '@/components/ui/date-range-picker'
@@ -245,6 +246,7 @@ export function PostsClient({ posts, comments }: Props) {
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm">{c.comment_text || '（無文字）'}</p>
+                  <p className="text-xs text-blue-600 mt-0.5">{translateComment(c.comment_text || '')}</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {c.author_name || '匿名'} · {c.published_at ? new Date(c.published_at).toLocaleDateString('zh-TW') : '-'}
                   </p>

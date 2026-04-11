@@ -77,10 +77,10 @@ export function DashboardClient({ posts, dailyTrend }: Props) {
   const currentLabel = formatRangeLabel(dateRange)
   const compLabel = formatRangeLabel(compRange)
 
-  // 趨勢圖：顯示當前 + 比較兩段期間的資料
+  // 趨勢圖：只顯示選定期間的資料
   const trendData = useMemo(() => {
     return dailyTrend
-      .filter((d) => d.date >= compRange.start && d.date <= dateRange.end)
+      .filter((d) => d.date >= dateRange.start && d.date <= dateRange.end)
       .map((d) => ({
         date: d.date,
         aov: d.aov_engagement,
@@ -174,7 +174,7 @@ export function DashboardClient({ posts, dailyTrend }: Props) {
 
       {/* 圖表區 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <EngagementLineChart data={trendData} />
+        <EngagementLineChart data={trendData} title={`每日平均互動數趨勢（${currentLabel}）`} />
         <SentimentCompareCard rov={sentimentData.rov} mlbb={sentimentData.mlbb} />
       </div>
 
