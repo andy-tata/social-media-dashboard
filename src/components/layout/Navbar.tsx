@@ -9,7 +9,6 @@ const NAV_ITEMS = [
   { href: '/dashboard', label: '總覽', icon: '📊' },
   { href: '/posts', label: '內容表現', icon: '📝' },
   { href: '/sentiment', label: '情緒分析', icon: '💬' },
-  { href: '/campaigns', label: '活動追蹤', icon: '🎯' },
   { href: '/reports', label: '報表產出', icon: '📋' },
 ]
 
