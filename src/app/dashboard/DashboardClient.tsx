@@ -102,12 +102,16 @@ export function DashboardClient({ posts, dailyTrend }: Props) {
     }
   }, [currentPosts])
 
-  // Top 5 互動貼文：根據品牌篩選，按互動數排序
+  // 最新貼文：根據品牌篩選，按時間排序
   const topPosts = useMemo(() => {
     let filtered = currentPosts
     if (postFilter === 'rov') filtered = filtered.filter((p) => p.is_own)
     else if (postFilter === 'mlbbth') filtered = filtered.filter((p) => !p.is_own)
-    return [...filtered].sort((a, b) => getEngagement(b) - getEngagement(a)).slice(0, 5)
+    return [...filtered].sort((a, b) => {
+      const ta = a.published_at ? new Date(a.published_at).getTime() : 0
+      const tb = b.published_at ? new Date(b.published_at).getTime() : 0
+      return tb - ta
+    }).slice(0, 5)
   }, [currentPosts, postFilter])
 
   return (
@@ -181,7 +185,8 @@ export function DashboardClient({ posts, dailyTrend }: Props) {
       {/* 最新貼文動態 */}
       <div className="bg-card rounded-lg border border-border">
         <div className="p-4 border-b border-border flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Top 5 互動貼文</h3>
+          <h3 className="text-sm font-semibold">最新貼文</h3>
+          <p className="text-xs text-muted-foreground">每日僅抓取各粉專最新 10 篇</p>
           <div className="flex items-center gap-1">
             {([
               { key: 'all', label: '全部' },
